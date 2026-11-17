@@ -32,11 +32,6 @@ public class PedidosController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // GET /api/pedidos/cliente/1
-    @GetMapping("/cliente/{idCliente}")
-    public ResponseEntity<List<Pedidos>> obtenerPorCliente(@PathVariable Long idCliente) {
-        return ResponseEntity.ok(pedidosService.obtenerPorCliente(idCliente));
-    }
 
     // POST /api/pedidos
     @PostMapping

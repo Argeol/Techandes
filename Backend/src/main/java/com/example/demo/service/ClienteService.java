@@ -36,6 +36,17 @@ public class ClienteService {
         }
         return clienteRepository.save(cliente);
     }
+    @Transactional
+    public Cliente ActualizarCliente(Long id, Cliente cliente){
+        Cliente cli = clienteRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado con el ID: " + id));
+        cli.setNombre(cliente.getNombre());
+        cli.setApellido(cliente.getApellido());
+        cli.setEmail(cliente.getEmail());
+        cli.setDocumento(cliente.getDocumento());
+        cli.setTelefono(cliente.getTelefono());
+        return clienteRepository.save(cli);
+    }
 
     @Transactional
     public void eliminarPorId(Long id) {

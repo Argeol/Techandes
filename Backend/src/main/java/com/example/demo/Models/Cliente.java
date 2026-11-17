@@ -17,6 +17,7 @@ public class Cliente {
     private String nombre;
     private String apellido;
     private String email;
+    private String ciudad;
     private String telefono;
     @Column(name = "fecha_registro", updatable = false)
     private LocalDateTime fecha_registro;

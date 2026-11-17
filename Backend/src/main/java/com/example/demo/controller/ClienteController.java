@@ -1,13 +1,17 @@
 package com.example.demo.controller;
 
 import com.example.demo.Models.Cliente;
+import com.example.demo.Models.Productos;
 import com.example.demo.service.ClienteService;
+import com.example.demo.service.PedidosService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -15,6 +19,9 @@ import java.util.List;
 public class ClienteController {
     @Autowired
     private ClienteService clienteService;
+
+    @Autowired 
+    private PedidosService pedidosService;
 
     @GetMapping
     public ResponseEntity<List<Cliente>> obtenerTodos() {
@@ -45,6 +52,15 @@ public class ClienteController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+      @PutMapping("/{id}")
+    public ResponseEntity<?> actualizarCliente(@PathVariable Long id, @RequestBody Cliente cliente) {
+        try {
+            Cliente actualizado = clienteService.ActualizarCliente(id, cliente);
+            return ResponseEntity.ok(actualizado);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error al actualizar: " + e.getMessage()));
+        }
+    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminarCliente(@PathVariable Long id) {
@@ -54,5 +70,10 @@ public class ClienteController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
+    }// 6. Historial de compras del cliente
+    @GetMapping("/{id}/pedidos")
+    public ResponseEntity<?> obtenerHistorialCompras(@PathVariable Long id) {
+        // Asegúrate de tener findByClienteIdClienteOrderByFechaPedidoDesc(id) en PedidosRepository
+        return ResponseEntity.ok(pedidosService.obtenerPorCliente(id));
     }
 }

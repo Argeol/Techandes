@@ -14,4 +14,6 @@ public interface EmpleadosRepository extends JpaRepository<Empleados, Long> {
 
     // Buscar empleados a cargo de un jefe específico
     List<Empleados> findByJefeIdEmpleado(Long idJefe);
+
+
 }

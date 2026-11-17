@@ -3,76 +3,63 @@ package com.example.demo.controller;
 import com.example.demo.Models.Productos;
 import com.example.demo.service.ProductosService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/productos")
-@CrossOrigin(origins = "*")
 public class ProductosController {
 
     @Autowired
     private ProductosService productosService;
 
-    // GET /api/productos
+    // 1. Listar todos (Accesible por ADMIN y VENDEDOR)
     @GetMapping
-    public ResponseEntity<List<Productos>> obtenerTodos() {
+    public ResponseEntity<List<Productos>> listarProductos() {
         return ResponseEntity.ok(productosService.obtenerTodos());
     }
 
-    // GET /api/productos/1
     @GetMapping("/{id}")
-    public ResponseEntity<Productos> buscarPorId(@PathVariable Long id) {
+    public ResponseEntity<?> obtenerProductoPorId(@PathVariable Long id) {
         return productosService.buscarPorId(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // GET /api/productos/categoria/2
-    @GetMapping("/categoria/{idCategoria}")
-    public ResponseEntity<List<Productos>> obtenerPorCategoria(@PathVariable Long idCategoria) {
-        return ResponseEntity.ok(productosService.obtenerPorCategoria(idCategoria));
-    }
-
-    // GET /api/productos/reabastecer?limite=5
-    @GetMapping("/reabastecer")
-    public ResponseEntity<List<Productos>> obtenerBajoStock(@RequestParam(defaultValue = "5") Integer limite) {
-        return ResponseEntity.ok(productosService.obtenerBajoStock(limite));
-    }
-
-    // POST /api/productos
+    // 2. Crear producto (Solo ADMIN - protegido en SecurityConfig)
     @PostMapping
     public ResponseEntity<?> crearProducto(@RequestBody Productos producto) {
         try {
-            Productos nuevoProducto = productosService.guardarProducto(producto);
-            return ResponseEntity.status(HttpStatus.CREATED).body(nuevoProducto);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            Productos nuevo = productosService.guardarProducto(producto);
+            return ResponseEntity.ok(nuevo);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error al crear producto: " + e.getMessage()));
         }
     }
 
-    // PUT /api/productos/1
+    // 3. Actualizar producto (Solo ADMIN)
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarProducto(@PathVariable Long id, @RequestBody Productos producto) {
         try {
             Productos actualizado = productosService.actualizarProducto(id, producto);
             return ResponseEntity.ok(actualizado);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error al actualizar: " + e.getMessage()));
         }
     }
 
-    // DELETE /api/productos/1
+    // 4. Eliminar producto (Solo ADMIN)
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminarProducto(@PathVariable Long id) {
         try {
             productosService.eliminarPorId(id);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            return ResponseEntity.ok(Map.of("message", "Producto eliminado correctamente"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "No se puede eliminar (puede estar asociado a pedidos)."));
         }
     }
 }
