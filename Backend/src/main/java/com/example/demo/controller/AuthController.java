@@ -51,7 +51,7 @@ public class AuthController {
         usuario.setPassword(encoder.encode(usuario.getPassword()));
 
         if (usuario.getRol() == null) {
-            usuario.setRol("ROLE_VENDEDOR");
+            usuario.setRol("ROLE_VENDEDOR");        
         }
 
         if (usuario.getEmpleado() != null && usuario.getEmpleado().getIdEmpleado() == null) {

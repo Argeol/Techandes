@@ -6,16 +6,21 @@ import com.example.demo.Models.DetallePedidoId;
 import com.example.demo.Models.Empleados;
 import com.example.demo.Models.Pedidos;
 import com.example.demo.Models.Productos;
+import com.example.demo.dto.CrearPedidoRequest;
 import com.example.demo.repository.ClienteRepository;
 import com.example.demo.repository.DetallePedidoRepository;
 import com.example.demo.repository.EmpleadosRepository;
 import com.example.demo.repository.PedidosRepository;
 import com.example.demo.repository.ProductosRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.example.demo.Models.Usuarios;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -83,43 +88,67 @@ public class PedidosService {
         return pedidosRepository.save(pedido);
     }
 
-    @Transactional
-    public Pedidos registrarVentaCompleta(Pedidos pedido, List<DetallePedido> detalles) {
-        // 1. Validar Cliente y Empleado
-        Cliente cliente = clienteRepository.findById(pedido.getCliente().getId())
-                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado"));
-        Empleados empleado = empleadosRepository.findById(pedido.getEmpleado().getIdEmpleado())
-                .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado"));
+    @Transactional(readOnly = true)
+    public List<DetallePedido> buscarPorIdPedido(long id) {
+        return detallePedidoRepository.findByPedidoIdPedido(id);
+    }
 
-        pedido.setCliente(cliente);
-        pedido.setEmpleado(empleado);
+    @Transactional // Si falla un producto o el stock, revierte todo automatico
+    public Pedidos registrarVenta(CrearPedidoRequest request, Long idEmpleado) {
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new IllegalArgumentException("El carrito no puede estar vacío.");
+        }
+        Empleados empleado = empleadosRepository.findById(idEmpleado)
+                .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado."));
+        // 1. Buscar Cliente y Empleado
+        Cliente cliente = clienteRepository.findById(request.getIdCliente())
+                .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado."));
 
-        // 2. Guardar la cabecera del Pedido
-        Pedidos pedidoGuardado = pedidosRepository.save(pedido);
+        // 2. Crear y guardar primero la cabecera del Pedido
+        Pedidos nuevoPedido = new Pedidos();
+        nuevoPedido.setCliente(cliente);
+        nuevoPedido.setEmpleado(empleado);
+        nuevoPedido.setFechaPedido(LocalDateTime.now());
+        nuevoPedido.setMetodoPago(request.getMetodoPago() != null ? request.getMetodoPago() : "EFECTIVO");
+        nuevoPedido.setEstado(request.getEstado() != null ? request.getEstado() : "ENTREGADO");
 
-        // 3. Procesar cada producto del detalle
-        for (DetallePedido detalle : detalles) {
-            Productos producto = productosRepository.findById(detalle.getProducto().getIdProducto())
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Producto no encontrado ID: " + detalle.getProducto().getIdProducto()));
+        Pedidos pedidoGuardado = pedidosRepository.save(nuevoPedido);
 
-            // Validar stock disponible
-            if (producto.getStock() < detalle.getCantidad()) {
-                throw new IllegalStateException("Stock insuficiente para el producto: " + producto.getNombre());
+        // 3. Recorrer ítems, validar/descontar stock y guardar en detalle_pedido
+        for (CrearPedidoRequest.ItemPedidoDTO item : request.getItems()) {
+            if (item.getCantidad() == null || item.getCantidad() <= 0) {
+                throw new IllegalArgumentException("La cantidad debe ser mayor a 0.");
             }
 
-            // Descuento de stock en MySQL
-            producto.setStock(producto.getStock() - detalle.getCantidad());
+            Productos producto = productosRepository.findById(item.getIdProducto())
+                    .orElseThrow(
+                            () -> new IllegalArgumentException("Producto no encontrado ID: " + item.getIdProducto()));
+
+            if (Boolean.FALSE.equals(producto.getActivo())) {
+                throw new IllegalArgumentException("El producto '" + producto.getNombre() + "' está inactivo.");
+            }
+
+            if (producto.getStock() < item.getCantidad()) {
+                throw new IllegalArgumentException(
+                        "Stock insuficiente para '" + producto.getNombre() + "'. Disponible: " + producto.getStock());
+            }
+
+            // Descontar stock y actualizar producto
+            producto.setStock(producto.getStock() - item.getCantidad());
             productosRepository.save(producto);
 
-            // Crear el ID compuesto y asociar entidades
-            DetallePedidoId detalleId = new DetallePedidoId(pedidoGuardado.getIdPedido(), producto.getIdProducto());
+            // Crear llave compuesta con el idPedido recién generado + idProducto
+            DetallePedidoId detalleId = new DetallePedidoId(
+                    pedidoGuardado.getIdPedido(),
+                    producto.getIdProducto());
+
+            DetallePedido detalle = new DetallePedido();
             detalle.setId(detalleId);
             detalle.setPedido(pedidoGuardado);
             detalle.setProducto(producto);
-            detalle.setPrecioUnitario(producto.getPrecio());
+            detalle.setCantidad(item.getCantidad());
+            detalle.setPrecioUnitario(producto.getPrecio()); // Precio real desde BD
 
-            // Guardar en detalle_pedido
             detallePedidoRepository.save(detalle);
         }
 

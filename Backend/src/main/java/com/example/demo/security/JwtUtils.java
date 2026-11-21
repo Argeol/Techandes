@@ -33,12 +33,11 @@ public class JwtUtils {
 
     // --- NUEVO: Generar Cookie pasando la Entidad Usuario completa ---
     public ResponseCookie generateJwtCookie(Usuarios usuario) {
-        
+
         // 1. Crear mapa de Claims personalizados
         Map<String, Object> claims = new HashMap<>();
         claims.put("idUsuario", usuario.getIdUsuario());
         claims.put("rol", usuario.getRol());
-
         // Si el usuario tiene un empleado asociado, guardamos su id_empleado
         if (usuario.getEmpleado() != null) {
             claims.put("idEmpleado", usuario.getEmpleado().getIdEmpleado());
@@ -75,6 +74,25 @@ public class JwtUtils {
                 .getBody()
                 .getSubject();
     }
+
+    // public Long extractIdEmpleado(String token) {
+    // Claims claims = extractAllClaims(token); // Usa tu método privado que ya
+    // decodifica los Claims
+    // Object idEmpleado = claims.get("idEmpleado");
+
+    // if (idEmpleado == null) {
+    // return null;
+    // }
+
+    // // En JSON/JWT los números enteros suelen parsearse como Integer, por eso lo
+    // // convertimos seguro a Long
+    // return Long.valueOf(idEmpleado.toString());
+    // }
+    public Long getIdEmpleadoFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        Object idEmpleado = claims.get("idEmpleado");
+        return idEmpleado != null ? Long.valueOf(idEmpleado.toString()) : null;
+    }           
 
     // Extraer un Claim específico (ejemplo: idEmpleado o idUsuario)
     public Claims getClaimsFromToken(String token) {
